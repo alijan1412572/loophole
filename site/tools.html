@@ -188,7 +188,7 @@ footer{border-top:1px solid var(--line);margin-top:64px;padding:38px 0 46px;back
     <h1>61 security tools. <span class="grad">Zero jargon.</span></h1>
     <p class="sub">Every check Loophole runs, explained the way you'd explain it to a friend. Big plain name first — the technical code stays small, for those who want it. <strong>All 61 run together in every scan</strong>; nothing to select or configure.</p>
     <div class="filters">
-      <span class="fchip on" data-f="all">All 61 tools</span><span class="fchip" data-f="new">🆕 11 New Tools</span><span class="fchip" data-f="keys">🔑 Passwords &amp; Keys</span><span class="fchip" data-f="db">🗄️ Database</span><span class="fchip" data-f="entry">🚪 Entry Points</span><span class="fchip" data-f="files">📁 Files</span><span class="fchip" data-f="login">🔐 Login &amp; Settings</span><span class="fchip" data-f="crypto">🔒 Encryption</span>
+      <span class="fchip on" data-f="all">All 61 tools</span><span class="fchip" data-f="new">🆕 11 New Tools</span><span class="fchip" data-f="keys">🔑 Passwords &amp; Keys</span><span class="fchip" data-f="db">🗄️ Database</span><span class="fchip" data-f="entry">🚪 Entry Points</span><span class="fchip" data-f="files">📁 Files</span><span class="fchip" data-f="login">🔐 Login &amp; Settings</span><span class="fchip" data-f="crypto">🔒 Encryption</span><span class="fchip" data-f="runtime">🖥️ Server Guard</span>
     </div>
   </div>
 </header>
@@ -281,6 +281,34 @@ footer{border-top:1px solid var(--line);margin-top:64px;padding:38px 0 46px;back
       <div class="tool"><div class="ic">🎰</div><h3>Predictable Random Values</h3><p>"Random" codes and tokens an attacker can guess — session IDs, reset links, OTPs.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">RAND001–003</span></div></div>
       <div class="tool"><div class="ic">🔢</div><h3>Weak PHP Random for Tokens<span class="new">NEW</span></h3><p>PHP rand(), mt_rand() and uniqid() are predictable — fine for shuffling a list, fatal for tokens and OTPs.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">RAND004</span></div></div>
       <div class="tool"><div class="ic">🛑</div><h3>TLS Validation Off (CERT_NONE)<span class="new">NEW</span></h3><p>Certificate checks disabled at the SSL layer — ssl.CERT_NONE, unverified contexts, or NODE_TLS_REJECT_UNAUTHORIZED=0 — let a fake server in.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">TLS003</span></div></div>
+    </div>
+  </section>
+
+  <section data-cat="runtime" id="server-guard">
+    <div class="sec-head"><span class="sec-num">07</span><h2>🖥️ Runtime Protection</h2></div>
+    <p class="cat-sub">The 61 checks above scan your code before it ships. <strong style="color:var(--text)">Loophole Server Guard</strong> is the other half — a runtime tool that watches the server while it runs, and rings the alarm the moment someone comes probing.</p>
+    <div class="tgrid">
+      <div class="tool" style="grid-column:1/-1">
+        <div class="ic">🛡️</div>
+        <h3>Loophole Server Guard — live server protection</h3>
+        <p>Server Guard tails your web (Apache/Nginx) and SSH/auth logs in real time and scores every IP that touches your server. Probes for <span class="mono">/.env</span> and <span class="mono">/wp-admin</span>, SQL injection, XSS, path traversal, scanner tools (sqlmap, nikto, nuclei) and SSH brute force all add to an attacker's score. Cross the warn line and you get an alert — terminal, email, Telegram or webhook — with the attacker's IP. Cross the ban line and the IP is banned at the firewall (iptables, nft or ufw) with an expiry. Your own IPs sit on a whitelist that can never be banned, and every firewall action runs in dry-run — logging the exact command it <em>would</em> run — until you switch dry-run off. Decoy honeypot ports (a fake SSH server, fake WordPress and phpMyAdmin logins, a fake <span class="mono">.env</span>) catch anyone poking around, every incident is stored in SQLite, and a local dashboard shows top attackers, active bans and recent incidents.</p>
+        <pre style="background:#0d1117;border:1px solid var(--line2);border-radius:12px;padding:16px 18px;font-family:var(--mono);font-size:.84rem;line-height:1.65;overflow-x:auto;color:#c9d4e3;margin-top:14px"><span style="color:#5b6b80"># see it work in 10 seconds — built-in web + SSH attack demo, dry-run ban</span>
+python3 sitealarm.py demo
+
+<span style="color:#5b6b80"># one-shot analysis of an existing log</span>
+python3 sitealarm.py scan-log /var/log/nginx/access.log
+
+<span style="color:#5b6b80"># run Loophole's code checks against the server's code, right now</span>
+python3 sitealarm.py codescan
+
+<span style="color:#5b6b80"># daemon — watch logs + honeypot + scheduled code scans</span>
+python3 sitealarm.py --config sitealarm.json run
+
+<span style="color:#5b6b80"># live dashboard — top attackers, active bans, incidents</span>
+python3 sitealarm.py dashboard</pre>
+        <p style="margin-top:14px">And because it's Loophole: Server Guard also runs Loophole's own 61 code checks against the server's code on a schedule. New critical or high findings raise the same alarm and the same alerts — so <strong style="color:var(--text)">code holes and live attacks show up in one dashboard</strong>. Pure Python 3 standard library, zero dependencies — same rule as the scanner.</p>
+        <div class="foot"><span class="pill med">RUNTIME</span><span class="code">SERVER GUARD · ZERO DEPENDENCIES</span></div>
+      </div>
     </div>
   </section>
 
