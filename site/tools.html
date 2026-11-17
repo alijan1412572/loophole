@@ -3,19 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>All 50 Security Checks — Loophole</title>
-<meta name="description" content="All 50 Loophole security checks in plain English — secrets, injection, XSS, uploads, sessions and encryption across JavaScript, Python, Go and PHP.">
+<title>All 61 Security Checks — Loophole</title>
+<meta name="description" content="All 61 Loophole security checks in plain English — secrets, injection, XSS, uploads, sessions and encryption across JavaScript, Python, Go and PHP.">
 <link rel="canonical" href="https://www.hakio.tech/tools.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Loophole">
-<meta property="og:title" content="All 50 Security Checks — Loophole">
-<meta property="og:description" content="All 50 Loophole security checks in plain English — secrets, injection, XSS, uploads, sessions and encryption across JavaScript, Python, Go and PHP.">
+<meta property="og:title" content="All 61 Security Checks — Loophole">
+<meta property="og:description" content="All 61 Loophole security checks in plain English — secrets, injection, XSS, uploads, sessions and encryption across JavaScript, Python, Go and PHP.">
 <meta property="og:url" content="https://www.hakio.tech/tools.html">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="All 50 Security Checks — Loophole">
-<meta name="twitter:description" content="All 50 Loophole security checks in plain English — secrets, injection, XSS, uploads, sessions and encryption across JavaScript, Python, Go and PHP.">
+<meta name="twitter:title" content="All 61 Security Checks — Loophole">
+<meta name="twitter:description" content="All 61 Loophole security checks in plain English — secrets, injection, XSS, uploads, sessions and encryption across JavaScript, Python, Go and PHP.">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"ItemList","name":"Loophole — All 50 Security Checks","numberOfItems":50,"itemListElement":[
+{"@context":"https://schema.org","@type":"ItemList","name":"Loophole — All 61 Security Checks","numberOfItems":61,"itemListElement":[
 {"@type":"ListItem","position":1,"name":"SEC001 — Hardcoded API key / token / secret"},
 {"@type":"ListItem","position":2,"name":"SEC002 — Hardcoded password"},
 {"@type":"ListItem","position":3,"name":"SEC003 — Private key in source code"},
@@ -65,7 +65,18 @@
 {"@type":"ListItem","position":47,"name":"CRY005 — ECB mode or zero/static IV"},
 {"@type":"ListItem","position":48,"name":"LOG001 — Sensitive data written to logs"},
 {"@type":"ListItem","position":49,"name":"LDAP001 — LDAP injection"},
-{"@type":"ListItem","position":50,"name":"HDR001 — Missing security headers"}
+{"@type":"ListItem","position":50,"name":"HDR001 — Missing security headers"},
+{"@type":"ListItem","position":51,"name":"SSTI001 — Server-side template injection"},
+{"@type":"ListItem","position":52,"name":"COOKIE001 — Cookie set without HttpOnly"},
+{"@type":"ListItem","position":53,"name":"RAND004 — PHP rand()/mt_rand()/uniqid() for tokens"},
+{"@type":"ListItem","position":54,"name":"TLS003 — TLS validation off via CERT_NONE / unverified context"},
+{"@type":"ListItem","position":55,"name":"CORS002 — CORS reflects any Origin / credentials with wildcard"},
+{"@type":"ListItem","position":56,"name":"CRLF001 — HTTP header injection (response splitting)"},
+{"@type":"ListItem","position":57,"name":"CMP001 — Secret compared without constant-time check"},
+{"@type":"ListItem","position":58,"name":"REDIR002 — DOM open redirect (client-side)"},
+{"@type":"ListItem","position":59,"name":"XXE002 — XML entity expansion via libxmljs"},
+{"@type":"ListItem","position":60,"name":"XSS005 — Dynamic HTML via insertAdjacentHTML / v-html"},
+{"@type":"ListItem","position":61,"name":"DESER002 — Unsafe deserialization (jsonpickle / v8.deserialize)"}
 ]}
 </script>
 <link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/rootsiemen/loophole/main/assets/favicon.ico">
@@ -160,7 +171,7 @@ footer{border-top:1px solid var(--line);margin-top:64px;padding:38px 0 46px;back
 
 <nav>
   <div class="wrap nav-in">
-    <a class="brand" href="/"><img src="https://raw.githubusercontent.com/rootsiemen/loophole/main/assets/logo.png" alt="Loophole logo">Loophole <span class="ver">v1.0.0</span></a>
+    <a class="brand" href="/"><img src="https://raw.githubusercontent.com/rootsiemen/loophole/main/assets/logo.png" alt="Loophole logo">Loophole <span class="ver">v1.1.0</span></a>
     <div class="nav-links">
       <a href="/#rules">Rules</a>
       <a href="/#usage">Usage</a>
@@ -174,10 +185,10 @@ footer{border-top:1px solid var(--line);margin-top:64px;padding:38px 0 46px;back
 <header class="pagehead">
   <div class="wrap pagehead-in">
     <div class="eyebrow">// THE FULL CATALOG</div>
-    <h1>50 security tools. <span class="grad">Zero jargon.</span></h1>
-    <p class="sub">Every check Loophole runs, explained the way you'd explain it to a friend. Big plain name first — the technical code stays small, for those who want it. <strong>All 50 run together in every scan</strong>; nothing to select or configure.</p>
+    <h1>61 security tools. <span class="grad">Zero jargon.</span></h1>
+    <p class="sub">Every check Loophole runs, explained the way you'd explain it to a friend. Big plain name first — the technical code stays small, for those who want it. <strong>All 61 run together in every scan</strong>; nothing to select or configure.</p>
     <div class="filters">
-      <span class="fchip on" data-f="all">All 50 tools</span><span class="fchip" data-f="new">🆕 15 New Tools</span><span class="fchip" data-f="keys">🔑 Passwords &amp; Keys</span><span class="fchip" data-f="db">🗄️ Database</span><span class="fchip" data-f="entry">🚪 Entry Points</span><span class="fchip" data-f="files">📁 Files</span><span class="fchip" data-f="login">🔐 Login &amp; Settings</span><span class="fchip" data-f="crypto">🔒 Encryption</span>
+      <span class="fchip on" data-f="all">All 61 tools</span><span class="fchip" data-f="new">🆕 11 New Tools</span><span class="fchip" data-f="keys">🔑 Passwords &amp; Keys</span><span class="fchip" data-f="db">🗄️ Database</span><span class="fchip" data-f="entry">🚪 Entry Points</span><span class="fchip" data-f="files">📁 Files</span><span class="fchip" data-f="login">🔐 Login &amp; Settings</span><span class="fchip" data-f="crypto">🔒 Encryption</span>
     </div>
   </div>
 </header>
@@ -193,7 +204,7 @@ footer{border-top:1px solid var(--line);margin-top:64px;padding:38px 0 46px;back
       <div class="tool"><div class="ic">🗝️</div><h3>Private Key in the Project</h3><p>The master key file of your server, included in the code folder itself.</p><div class="foot"><span class="pill crit">CRITICAL</span><span class="code">SEC003</span></div></div>
       <div class="tool"><div class="ic">☁️</div><h3>Cloud Keys Exposed</h3><p>Amazon/AWS access keys hardcoded — someone could run up cloud bills in your name.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">SEC004</span></div></div>
       <div class="tool"><div class="ic">🎲</div><h3>Secret-Looking Strings</h3><p>Random-looking strings that behave exactly like passwords, even if nobody labelled them.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">SEC005</span></div></div>
-      <div class="tool"><div class="ic">📜</div><h3>Secrets Printed in Logs<span class="new">NEW</span></h3><p>Passwords or tokens written into log files, where they quietly stay forever.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">LOG001</span></div></div>
+      <div class="tool"><div class="ic">📜</div><h3>Secrets Printed in Logs</h3><p>Passwords or tokens written into log files, where they quietly stay forever.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">LOG001</span></div></div>
     </div>
   </section>
 
@@ -202,8 +213,8 @@ footer{border-top:1px solid var(--line);margin-top:64px;padding:38px 0 46px;back
     <p class="cat-sub">Ways a visitor can steal, change or delete your data through normal-looking forms.</p>
     <div class="tgrid">
       <div class="tool"><div class="ic">💉</div><h3>SQL Injection</h3><p>Typed input slips into database commands — the classic way entire customer lists get stolen. Covers JavaScript, Python, Go and PHP.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">SQLI001–004</span></div></div>
-      <div class="tool"><div class="ic">🍃</div><h3>NoSQL Injection<span class="new">NEW</span></h3><p>The same trick aimed at MongoDB-style databases — login forms are the favourite target.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">NOSQL001</span></div></div>
-      <div class="tool"><div class="ic">📇</div><h3>LDAP Injection<span class="new">NEW</span></h3><p>Company directory lookups built from typed input can be twisted to bypass logins.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">LDAP001</span></div></div>
+      <div class="tool"><div class="ic">🍃</div><h3>NoSQL Injection</h3><p>The same trick aimed at MongoDB-style databases — login forms are the favourite target.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">NOSQL001</span></div></div>
+      <div class="tool"><div class="ic">📇</div><h3>LDAP Injection</h3><p>Company directory lookups built from typed input can be twisted to bypass logins.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">LDAP001</span></div></div>
     </div>
   </section>
 
@@ -215,9 +226,13 @@ footer{border-top:1px solid var(--line);margin-top:64px;padding:38px 0 46px;back
       <div class="tool"><div class="ic">⌨️</div><h3>Command Injection</h3><p>Visitor input turned into server commands — the attacker ends up driving your machine.</p><div class="foot"><span class="pill crit">CRITICAL</span><span class="code">CMD001–004</span></div></div>
       <div class="tool"><div class="ic">🧨</div><h3>Code Injection (eval)</h3><p>eval() and friends running text as code — if any of that text comes from a visitor, game over.</p><div class="foot"><span class="pill crit">CRITICAL</span><span class="code">EVAL001–002</span></div></div>
       <div class="tool"><div class="ic">📡</div><h3>Server-Side Request Forgery</h3><p>Your server tricked into calling internal addresses it should never reveal or reach.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">SSRF001</span></div></div>
-      <div class="tool"><div class="ic">🧬</div><h3>Prototype Pollution<span class="new">NEW</span></h3><p>A JavaScript flaw where attackers quietly rewrite how your whole app behaves.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">PROTO001</span></div></div>
-      <div class="tool"><div class="ic">📄</div><h3>XML External Entity (XXE)<span class="new">NEW</span></h3><p>Uploaded XML files that make your server hand over its own private files.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">XXE001</span></div></div>
-      <div class="tool"><div class="ic">🌀</div><h3>Regex Denial of Service<span class="new">NEW</span></h3><p>A pattern so tangled that one crafted input can freeze your site for everyone.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">REDOS001</span></div></div>
+      <div class="tool"><div class="ic">🧬</div><h3>Prototype Pollution</h3><p>A JavaScript flaw where attackers quietly rewrite how your whole app behaves.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">PROTO001</span></div></div>
+      <div class="tool"><div class="ic">📄</div><h3>XML External Entity (XXE)</h3><p>Uploaded XML files that make your server hand over its own private files.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">XXE001</span></div></div>
+      <div class="tool"><div class="ic">🌀</div><h3>Regex Denial of Service</h3><p>A pattern so tangled that one crafted input can freeze your site for everyone.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">REDOS001</span></div></div>
+      <div class="tool"><div class="ic">🧩</div><h3>Server-Side Template Injection<span class="new">NEW</span></h3><p>User input used as the template itself — Jinja2, EJS, Pug, Go templates or Twig — lets an attacker run code on your server.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">SSTI001</span></div></div>
+      <div class="tool"><div class="ic">🧾</div><h3>Header Injection (Response Splitting)<span class="new">NEW</span></h3><p>User-influenced values written into response headers can smuggle extra headers — or a whole fake response — into the reply.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">CRLF001</span></div></div>
+      <div class="tool"><div class="ic">🗜️</div><h3>XML Entity Expansion (libxmljs)<span class="new">NEW</span></h3><p>libxmljs parsers with entity expansion switched on can be fed documents that blow up memory or reach local files.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">XXE002</span></div></div>
+      <div class="tool"><div class="ic">🖼️</div><h3>Unsafe HTML Sinks<span class="new">NEW</span></h3><p>insertAdjacentHTML, Vue v-html and Angular bypassSecurityTrust* render raw HTML — the same hole as innerHTML, in framework clothing.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">XSS005</span></div></div>
     </div>
   </section>
 
@@ -226,9 +241,10 @@ footer{border-top:1px solid var(--line);margin-top:64px;padding:38px 0 46px;back
     <p class="cat-sub">Anything your app opens, unzips or accepts from a visitor.</p>
     <div class="tgrid">
       <div class="tool"><div class="ic">🗂️</div><h3>Path Traversal</h3><p>Tricks like "../" that let visitors read files outside the folder they were allowed into.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">PATH001–002</span></div></div>
-      <div class="tool"><div class="ic">🤐</div><h3>Zip Slip<span class="new">NEW</span></h3><p>A booby-trapped ZIP that writes files anywhere on your server when opened.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">ZIP001</span></div></div>
-      <div class="tool"><div class="ic">📤</div><h3>Unsafe File Uploads<span class="new">NEW</span></h3><p>Upload boxes that never check what kind of file arrived — a favourite break-in route.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">UPL001</span></div></div>
-      <div class="tool"><div class="ic">📦</div><h3>Unsafe Deserialization<span class="new">NEW</span></h3><p>Saved-data formats (pickle, unserialize) that execute whatever an attacker packed inside.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">DESER001</span></div></div>
+      <div class="tool"><div class="ic">🤐</div><h3>Zip Slip</h3><p>A booby-trapped ZIP that writes files anywhere on your server when opened.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">ZIP001</span></div></div>
+      <div class="tool"><div class="ic">📤</div><h3>Unsafe File Uploads</h3><p>Upload boxes that never check what kind of file arrived — a favourite break-in route.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">UPL001</span></div></div>
+      <div class="tool"><div class="ic">📦</div><h3>Unsafe Deserialization</h3><p>Saved-data formats (pickle, unserialize) that execute whatever an attacker packed inside.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">DESER001</span></div></div>
+      <div class="tool"><div class="ic">🧳</div><h3>Unsafe Deserialization (jsonpickle / v8)<span class="new">NEW</span></h3><p>jsonpickle.decode and v8.deserialize rebuild objects from attacker data — code execution hiding in a saved file.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">DESER002</span></div></div>
     </div>
   </section>
 
@@ -237,14 +253,18 @@ footer{border-top:1px solid var(--line);margin-top:64px;padding:38px 0 46px;back
     <p class="cat-sub">The quiet switches that decide whether your logins and settings actually protect you.</p>
     <div class="tgrid">
       <div class="tool"><div class="ic">🎫</div><h3>Login Tokens Never Verified</h3><p>JWT tokens read but never actually checked — a forged token sails straight in.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">JWT001</span></div></div>
-      <div class="tool"><div class="ic">🚫</div><h3>JWT "None" / Weak Secret<span class="new">NEW</span></h3><p>Settings that accept unsigned tokens, or secrets so short anyone can guess them.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">JWT002</span></div></div>
+      <div class="tool"><div class="ic">🚫</div><h3>JWT "None" / Weak Secret</h3><p>Settings that accept unsigned tokens, or secrets so short anyone can guess them.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">JWT002</span></div></div>
       <div class="tool"><div class="ic">🧑‍💻</div><h3>Weak Login Patterns</h3><p>Authentication shortcuts that look fine and fail quietly under attack.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">AUTH001</span></div></div>
-      <div class="tool"><div class="ic">🛡️</div><h3>Missing CSRF Protection<span class="new">NEW</span></h3><p>Without it, a malicious page can make your logged-in visitors act without knowing.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">CSRF001</span></div></div>
+      <div class="tool"><div class="ic">🛡️</div><h3>Missing CSRF Protection</h3><p>Without it, a malicious page can make your logged-in visitors act without knowing.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">CSRF001</span></div></div>
       <div class="tool"><div class="ic">🌐</div><h3>Wide-Open CORS</h3><p>Your app answering data requests from literally any website on the internet.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">CORS001</span></div></div>
-      <div class="tool"><div class="ic">↪️</div><h3>Open Redirect<span class="new">NEW</span></h3><p>Links on your own trusted domain that silently bounce visitors to scam sites.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">REDIR001</span></div></div>
-      <div class="tool"><div class="ic">🧱</div><h3>Missing Security Headers<span class="new">NEW</span></h3><p>Standard browser protections (CSP, frame guards) simply never switched on.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">HDR001</span></div></div>
+      <div class="tool"><div class="ic">↪️</div><h3>Open Redirect</h3><p>Links on your own trusted domain that silently bounce visitors to scam sites.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">REDIR001</span></div></div>
+      <div class="tool"><div class="ic">🧱</div><h3>Missing Security Headers</h3><p>Standard browser protections (CSP, frame guards) simply never switched on.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">HDR001</span></div></div>
       <div class="tool"><div class="ic">🐞</div><h3>Debug Mode Left On</h3><p>Developer debug screens still active in the live app — they leak how everything works.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">DBG001</span></div></div>
       <div class="tool"><div class="ic">💬</div><h3>Error Details Shown to Visitors</h3><p>Full technical error messages handed to strangers — a map for attackers.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">ERR001</span></div></div>
+      <div class="tool"><div class="ic">🍪</div><h3>Cookie Without HttpOnly<span class="new">NEW</span></h3><p>Session cookies set without HttpOnly can be stolen by any script that slips onto the page.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">COOKIE001</span></div></div>
+      <div class="tool"><div class="ic">🔀</div><h3>CORS Reflects Any Origin<span class="new">NEW</span></h3><p>Echoing back any request Origin — or pairing credentials with a wildcard — lets any site act as your user.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">CORS002</span></div></div>
+      <div class="tool"><div class="ic">⏱️</div><h3>Secrets Compared with ==<span class="new">NEW</span></h3><p>Comparing tokens with == leaks timing hints, and PHP type juggling can turn a wrong secret into a match.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">CMP001</span></div></div>
+      <div class="tool"><div class="ic">🧭</div><h3>DOM Open Redirect<span class="new">NEW</span></h3><p>JavaScript that sends visitors to a URL taken from the page — a phishing link wearing your domain.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">REDIR002</span></div></div>
     </div>
   </section>
 
@@ -255,14 +275,16 @@ footer{border-top:1px solid var(--line);margin-top:64px;padding:38px 0 46px;back
       <div class="tool"><div class="ic">🔐</div><h3>MD5 Password Storage</h3><p>Passwords hashed with MD5 — crackable in seconds with free tools.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">CRY001</span></div></div>
       <div class="tool"><div class="ic">🔏</div><h3>SHA-1 Password Storage</h3><p>SHA-1 is retired for passwords for a reason — nearly as fast to crack as MD5.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">CRY002</span></div></div>
       <div class="tool"><div class="ic">📻</div><h3>Ancient Ciphers (DES / RC4)</h3><p>Encryption methods from another era, broken by modern computers.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">CRY003</span></div></div>
-      <div class="tool"><div class="ic">🔁</div><h3>Hardcoded IV / ECB Mode<span class="new">NEW</span></h3><p>Encryption done with a fixed starting value, or ECB mode that leaks patterns in your data.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">CRY004–005</span></div></div>
+      <div class="tool"><div class="ic">🔁</div><h3>Hardcoded IV / ECB Mode</h3><p>Encryption done with a fixed starting value, or ECB mode that leaks patterns in your data.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">CRY004–005</span></div></div>
       <div class="tool"><div class="ic">🔌</div><h3>Secure Connection Check Switched Off</h3><p>TLS verification disabled — your app will happily talk to a fake server.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">TLS001</span></div></div>
-      <div class="tool"><div class="ic">📶</div><h3>Outdated TLS Versions<span class="new">NEW</span></h3><p>Old connection protocols (TLS 1.0/1.1) that browsers and attackers both left behind.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">TLS002</span></div></div>
+      <div class="tool"><div class="ic">📶</div><h3>Outdated TLS Versions</h3><p>Old connection protocols (TLS 1.0/1.1) that browsers and attackers both left behind.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">TLS002</span></div></div>
       <div class="tool"><div class="ic">🎰</div><h3>Predictable Random Values</h3><p>"Random" codes and tokens an attacker can guess — session IDs, reset links, OTPs.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">RAND001–003</span></div></div>
+      <div class="tool"><div class="ic">🔢</div><h3>Weak PHP Random for Tokens<span class="new">NEW</span></h3><p>PHP rand(), mt_rand() and uniqid() are predictable — fine for shuffling a list, fatal for tokens and OTPs.</p><div class="foot"><span class="pill med">MEDIUM</span><span class="code">RAND004</span></div></div>
+      <div class="tool"><div class="ic">🛑</div><h3>TLS Validation Off (CERT_NONE)<span class="new">NEW</span></h3><p>Certificate checks disabled at the SSL layer — ssl.CERT_NONE, unverified contexts, or NODE_TLS_REJECT_UNAUTHORIZED=0 — let a fake server in.</p><div class="foot"><span class="pill high">HIGH</span><span class="code">TLS003</span></div></div>
     </div>
   </section>
 
-  <div class="strip">Every scan runs <b>all 50 tools together</b> — point Loophole at your project, get one report with a plain-English why and a concrete fix for every finding.</div>
+  <div class="strip">Every scan runs <b>all 61 tools together</b> — point Loophole at your project, get one report with a plain-English why and a concrete fix for every finding.</div>
 
 </div>
 
@@ -274,7 +296,7 @@ footer{border-top:1px solid var(--line);margin-top:64px;padding:38px 0 46px;back
         <p class="about">A zero-dependency static security scanner in a single Python file. Built with the standard library only — because your security tool shouldn't be a supply-chain risk itself.</p>
       </div>
       <div><h4>Project</h4><a href="https://github.com/rootsiemen/loophole">Repository</a><a href="https://github.com/rootsiemen/loophole/releases">Releases</a><a href="https://github.com/rootsiemen/loophole/issues">Issues</a><a href="/#rules">Rule catalog</a></div>
-      <div><h4>Resources</h4><a href="/tools.html">All 50 tools</a><a href="/other-tools.html">Other tools</a><a href="/#usage">Usage guide</a><a href="/#action">GitHub Action</a><a href="https://github.com/rootsiemen/loophole/blob/main/CONTRIBUTING.md">Contributing</a></div>
+      <div><h4>Resources</h4><a href="/tools.html">All 61 tools</a><a href="/other-tools.html">Other tools</a><a href="/#usage">Usage guide</a><a href="/#action">GitHub Action</a><a href="https://github.com/rootsiemen/loophole/blob/main/CONTRIBUTING.md">Contributing</a></div>
       <div><h4>Trust</h4><a href="/about.html">About</a><a href="/privacy.html">Privacy policy</a><a href="/contact.html">Contact</a><a href="https://github.com/rootsiemen/loophole/blob/main/SECURITY.md">Security policy</a><a href="https://github.com/rootsiemen/loophole/blob/main/LICENSE">MIT License</a></div>
     </div>
     <div class="foot-base"><span>© 2026 Loophole — created &amp; maintained by <a href="https://github.com/rootsiemen" style="display:inline;color:var(--muted)">@rootsiemen</a></span><span>PYTHON STDLIB ONLY · NO TELEMETRY · NO ACCOUNTS</span></div>

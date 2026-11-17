@@ -4,16 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>About Loophole — Open-Source Security Scanner</title>
-<meta name="description" content="About Loophole — a free open-source static security scanner in one Python file: 50 checks, zero dependencies, taint tracking, a fix for every finding.">
+<meta name="description" content="About Loophole — a free open-source static security scanner in one Python file: 61 checks, zero dependencies, taint tracking, a fix for every finding.">
 <link rel="canonical" href="https://www.hakio.tech/about.html">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Loophole">
 <meta property="og:title" content="About Loophole — Open-Source Security Scanner">
-<meta property="og:description" content="About Loophole — a free open-source static security scanner in one Python file: 50 checks, zero dependencies, taint tracking, a fix for every finding.">
+<meta property="og:description" content="About Loophole — a free open-source static security scanner in one Python file: 61 checks, zero dependencies, taint tracking, a fix for every finding.">
 <meta property="og:url" content="https://www.hakio.tech/about.html">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="About Loophole — Open-Source Security Scanner">
-<meta name="twitter:description" content="About Loophole — a free open-source static security scanner in one Python file: 50 checks, zero dependencies, taint tracking, a fix for every finding.">
+<meta name="twitter:description" content="About Loophole — a free open-source static security scanner in one Python file: 61 checks, zero dependencies, taint tracking, a fix for every finding.">
 <link rel="icon" type="image/x-icon" href="https://raw.githubusercontent.com/rootsiemen/loophole/main/assets/favicon.ico">
 <link rel="icon" type="image/png" sizes="32x32" href="https://raw.githubusercontent.com/rootsiemen/loophole/main/assets/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="https://raw.githubusercontent.com/rootsiemen/loophole/main/assets/favicon-192.png">
@@ -81,7 +81,7 @@ footer{border-top:1px solid var(--line);margin-top:64px;padding:38px 0 46px;back
 
 <nav>
   <div class="wrap nav-in">
-    <a class="brand" href="/"><img src="https://raw.githubusercontent.com/rootsiemen/loophole/main/assets/logo.png" alt="Loophole logo">Loophole <span class="ver">v1.0.0</span></a>
+    <a class="brand" href="/"><img src="https://raw.githubusercontent.com/rootsiemen/loophole/main/assets/logo.png" alt="Loophole logo">Loophole <span class="ver">v1.1.0</span></a>
     <div class="nav-links">
       <a href="/#rules">Rules</a>
       <a href="/#usage">Usage</a>
@@ -103,18 +103,18 @@ footer{border-top:1px solid var(--line);margin-top:64px;padding:38px 0 46px;back
 <div class="wrap">
   <div class="prose">
     <h2>What Loophole is</h2>
-    <p>Loophole is an <strong>open-source static security scanner</strong> for JavaScript/TypeScript, Python, Go and PHP. It runs <strong>50 security checks</strong> — hardcoded secrets, SQL/NoSQL/LDAP injection, XSS, command injection, unsafe uploads, broken JWT and TLS settings, weak crypto and more — and explains every finding in plain language with a concrete fix.</p>
+    <p>Loophole is an <strong>open-source static security scanner</strong> for JavaScript/TypeScript, Python, Go and PHP. It runs <strong>61 security checks</strong> — hardcoded secrets, SQL/NoSQL/LDAP injection, XSS, command injection, unsafe uploads, broken JWT and TLS settings, weak crypto and more — and explains every finding in plain language with a concrete fix.</p>
     <p>Unlike a simple pattern matcher, Loophole performs <strong>lightweight taint tracking</strong>: it follows user input from where it enters the app (request parameters, form fields, superglobals) to the dangerous places it can end up (database queries, shell commands, HTML output), so findings are real, reachable problems — not keyword noise.</p>
 
     <h2>Why it exists</h2>
-    <p>Most scanners are either heavyweight SaaS platforms with accounts and onboarding, or noisy grep scripts. Loophole sits in the middle: a single readable file you can drop into any project or CI pipeline in seconds. No install, no config file, no telemetry — and because it is built only on the Python standard library, the security tool itself adds no supply-chain risk.</p>
+    <p>Most scanners are either heavyweight SaaS platforms with accounts and onboarding, or noisy grep scripts. Loophole sits in the middle: a single readable file you can drop into any project or CI pipeline in seconds. No install, no required config, no telemetry — and because it is built only on the Python standard library, the security tool itself adds no supply-chain risk.</p>
     <p>It also ships as an official <strong>GitHub Action</strong> (<span class="mono" style="font-family:var(--mono)">rootsiemen/loophole@v1</span>) that runs on every push and pull request and uploads SARIF results to your repository's Security tab. And yes — Loophole scans its own codebase clean on every change.</p>
 
     <h2>Who maintains it</h2>
     <p>Loophole is created and maintained by <strong>Muhamad Raza Haider</strong>, a web developer who builds with Next.js, React and Python. You can follow the work — issues, releases and the roadmap — on GitHub at <a href="https://github.com/rootsiemen">@rootsiemen</a>. Contributions are welcome: a new rule is one focused function plus test fixtures, and the contributing guide walks through it.</p>
 
     <a class="btn primary" href="https://github.com/rootsiemen/loophole">Loophole on GitHub</a>
-    <a class="btn" href="/tools.html">See all 50 checks</a>
+    <a class="btn" href="/tools.html">See all 61 checks</a>
     <a class="btn" href="/other-tools.html">Other tools by Raza</a>
   </div>
 </div>
@@ -127,7 +127,7 @@ footer{border-top:1px solid var(--line);margin-top:64px;padding:38px 0 46px;back
         <p class="about">A zero-dependency static security scanner in a single Python file. Built with the standard library only — because your security tool shouldn't be a supply-chain risk itself.</p>
       </div>
       <div><h4>Project</h4><a href="https://github.com/rootsiemen/loophole">Repository</a><a href="https://github.com/rootsiemen/loophole/releases">Releases</a><a href="https://github.com/rootsiemen/loophole/issues">Issues</a><a href="/#rules">Rule catalog</a></div>
-      <div><h4>Resources</h4><a href="/tools.html">All 50 tools</a><a href="/other-tools.html">Other tools</a><a href="/#usage">Usage guide</a><a href="/#action">GitHub Action</a><a href="https://github.com/rootsiemen/loophole/blob/main/CONTRIBUTING.md">Contributing</a></div>
+      <div><h4>Resources</h4><a href="/tools.html">All 61 tools</a><a href="/other-tools.html">Other tools</a><a href="/#usage">Usage guide</a><a href="/#action">GitHub Action</a><a href="https://github.com/rootsiemen/loophole/blob/main/CONTRIBUTING.md">Contributing</a></div>
       <div><h4>Trust</h4><a href="/about.html">About</a><a href="/privacy.html">Privacy policy</a><a href="/contact.html">Contact</a><a href="https://github.com/rootsiemen/loophole/blob/main/SECURITY.md">Security policy</a><a href="https://github.com/rootsiemen/loophole/blob/main/LICENSE">MIT License</a></div>
     </div>
     <div class="foot-base"><span>© 2026 Loophole — created &amp; maintained by <a href="https://github.com/rootsiemen" style="display:inline;color:var(--muted)">@rootsiemen</a></span><span>PYTHON STDLIB ONLY · NO TELEMETRY · NO ACCOUNTS</span></div>

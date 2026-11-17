@@ -4,16 +4,16 @@
 
 ## What it does
 
-- 50 security checks: hardcoded secrets and passwords, SQL / NoSQL / LDAP injection, cross-site scripting (XSS), command injection, eval() code injection, SSRF, prototype pollution, unsafe deserialization, XML external entity (XXE), open redirects, Zip Slip, unsafe file uploads, missing CSRF protection, ReDoS, JWT weaknesses ('none' algorithm, weak secrets, unverified tokens), outdated TLS versions and disabled TLS verification, weak crypto (MD5/SHA-1 password hashing, DES/RC4, hardcoded or zero IVs, ECB mode), predictable random values, secrets written to logs, missing security headers, debug mode and error-detail leaks.
+- 61 security checks: hardcoded secrets and passwords, SQL / NoSQL / LDAP injection, cross-site scripting (XSS), command injection, eval() code injection, SSRF, prototype pollution, unsafe deserialization, XML external entity (XXE), open redirects, Zip Slip, unsafe file uploads, missing CSRF protection, ReDoS, JWT weaknesses ('none' algorithm, weak secrets, unverified tokens), outdated TLS versions and disabled TLS verification, weak crypto (MD5/SHA-1 password hashing, DES/RC4, hardcoded or zero IVs, ECB mode), predictable random values, secrets written to logs, missing security headers, debug mode and error-detail leaks. v1.1.0 adds 11 more: server-side template injection (SSTI), cookies set without HttpOnly, weak PHP randomness (rand/mt_rand/uniqid) for tokens, TLS validation disabled via ssl.CERT_NONE / unverified contexts / NODE_TLS_REJECT_UNAUTHORIZED=0, CORS reflecting any Origin or credentials with a wildcard origin, HTTP header injection (response splitting), non-constant-time secret comparison, DOM open redirects, libxmljs entity expansion, framework HTML sinks (insertAdjacentHTML, Vue v-html, Angular bypassSecurityTrust), and jsonpickle / v8 deserialization.
 - Lightweight taint tracking: follows user input from source (request data, form fields, superglobals) to dangerous sinks (queries, shells, HTML output), so findings are real data flows, not keyword noise.
-- Runs fully offline, in seconds, with no account, no config file and no telemetry. Python 3.8+ standard library only.
+- Runs fully offline, in seconds, with no account and no telemetry; an optional `.loophole.json` config file (exclude paths, disable rules, severity overrides), `loophole:ignore` inline suppressions, `--baseline` / `--write-baseline`, and `--html` reports are available. Python 3.8+ standard library only.
 - Official GitHub Action (rootsiemen/loophole@v1) runs it on every push and pull request and uploads SARIF results to the repository Security tab.
 - Exit code 1 on critical/high findings, so CI fails exactly when it should; `--fix-dry` prints suggested patches as diffs without modifying files.
 
 ## Links
 
 - Homepage: https://www.hakio.tech/
-- All 50 security checks (plain-English catalog): https://www.hakio.tech/tools.html
+- All 61 security checks (plain-English catalog): https://www.hakio.tech/tools.html
 - Other free tools by the same author: https://www.hakio.tech/other-tools.html
 - About: https://www.hakio.tech/about.html
 - GitHub repository (source, releases, issues): https://github.com/rootsiemen/loophole
