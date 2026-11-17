@@ -59,10 +59,18 @@ EXPECTED = {
                      "REDOS001", "TLS002", "CRY005", "LOG001", "LDAP001"},
     "mixed_vuln.py": {"SEC003", "SEC004", "SEC005", "PATH002", "CORS001",
                       "DBG001"},
+    "v2_vuln.js": {"SSTI001", "COOKIE001", "TLS003", "CORS002", "CRLF001",
+                   "CMP001", "REDIR002", "XXE002", "XSS005", "DESER002"},
+    "v2_vuln.py": {"SSTI001", "COOKIE001", "TLS003", "CORS002", "CRLF001",
+                   "CMP001", "DESER002"},
+    "v2_vuln.php": {"SSTI001", "COOKIE001", "TLS003", "CORS002", "CRLF001",
+                    "CMP001", "RAND004"},
+    "v2_vuln.go": {"SSTI001", "CORS002", "CMP001"},
 }
 
 CLEAN = ["js_clean.js", "ts_clean.ts", "py_clean.py", "go_clean.go",
-         "php_clean.php", "all_clean.js"]
+         "php_clean.php", "all_clean.js", "v2_clean.js", "v2_clean.py",
+         "v2_clean.php", "v2_clean.go"]
 
 
 class TestFixtures(unittest.TestCase):
@@ -129,7 +137,7 @@ class TestFixtures(unittest.TestCase):
             [sys.executable, SCANNER, "scan", "--rules", "."],
             capture_output=True, text=True, cwd=ROOT)
         self.assertEqual(proc.returncode, 0)
-        self.assertIn("50 rules total", proc.stdout)
+        self.assertIn("61 rules total", proc.stdout)
 
     def test_no_rule_crashes(self):
         """Every rule function must run without raising (regression net for
@@ -165,6 +173,107 @@ class TestFixtures(unittest.TestCase):
                           "unsuppressed twin line should still fire")
         finally:
             os.unlink(path)
+
+
+    def test_ignore_suppression(self):
+        """loophole:ignore (space and = forms, plus bare) silences rules."""
+        sys.path.insert(0, ROOT)
+        import loophole
+        with tempfile.NamedTemporaryFile(
+                suffix=".py", mode="w", delete=False) as tmp:
+            tmp.write('API_KEY = "sk-live-abcdef1234567890"  '
+                      '# loophole:ignore SEC001\n')
+            tmp.write('API_SECRET = "sk-live-abcdef1234567890"  '
+                      '# loophole:ignore=SEC001\n')
+            tmp.write('AUTH_TOKEN = "sk-live-abcdef1234567890"  '
+                      '# loophole:ignore\n')
+            tmp.write('CLIENT_SECRET = "sk-live-abcdef1234567890"\n')
+            path = tmp.name
+        try:
+            findings = loophole.scan_file(path)
+            by_line = {}
+            for f in findings:
+                by_line.setdefault(f.line, set()).add(f.rule_id)
+            for ln in (1, 2, 3):
+                self.assertNotIn(
+                    "SEC001", by_line.get(ln, set()),
+                    f"loophole:ignore did not silence line {ln}")
+            self.assertIn("SEC001", by_line.get(4, set()),
+                          "unsuppressed line should still fire")
+        finally:
+            os.unlink(path)
+
+    def test_config_file(self):
+        """A .loophole.json can disable rules, override severities and
+        exclude paths — picked up automatically from the scanned root."""
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, "app.py"), "w") as fh:
+                fh.write('API_KEY = "sk-live-abcdef1234567890"\n')
+                fh.write('DB_PASSWORD = "hunter2hunter2"\n')
+            with open(os.path.join(d, "skipme.py"), "w") as fh:
+                fh.write('API_KEY = "sk-live-abcdef1234567890"\n')
+            with open(os.path.join(d, ".loophole.json"), "w") as fh:
+                json.dump({"disable": ["SEC002"],
+                           "severity": {"SEC001": "medium"},
+                           "exclude": ["skipme.py"]}, fh)
+            code, findings = scan(d)
+            ids = rule_ids(findings)
+            self.assertIn("SEC001", ids)
+            self.assertNotIn("SEC002", ids,
+                             "config disable did not apply")
+            self.assertTrue(
+                all("skipme.py" not in f["path"] for f in findings),
+                "config exclude did not apply")
+            sec1 = [f for f in findings if f["rule_id"] == "SEC001"]
+            self.assertTrue(
+                all(f["severity"] == "medium" for f in sec1),
+                "config severity override did not apply")
+            self.assertEqual(code, 0,
+                             "only-medium findings should exit 0")
+
+    def test_baseline_roundtrip(self):
+        """--write-baseline records findings; --baseline then hides them."""
+        target = os.path.join(FIX, "py_vuln.py")
+        with tempfile.NamedTemporaryFile(suffix=".json",
+                                         delete=False) as tmp:
+            base = tmp.name
+        try:
+            proc = subprocess.run(
+                [sys.executable, SCANNER, "scan", target,
+                 "--write-baseline", base, "--no-color"],
+                capture_output=True, text=True, cwd=ROOT)
+            self.assertEqual(proc.returncode, 0)
+            with open(base) as fh:
+                data = json.load(fh)
+            self.assertTrue(data["entries"],
+                            "baseline file has no entries")
+            code, findings = scan(target, "--baseline", base)
+            self.assertEqual(findings, [],
+                             "baseline did not suppress known findings")
+            self.assertEqual(code, 0)
+        finally:
+            os.unlink(base)
+
+    def test_html_report(self):
+        with tempfile.NamedTemporaryFile(suffix=".html",
+                                         delete=False) as tmp:
+            out = tmp.name
+        try:
+            proc = subprocess.run(
+                [sys.executable, SCANNER, "scan",
+                 os.path.join(FIX, "js_vuln.js"),
+                 "--html", out, "--no-color"],
+                capture_output=True, text=True, cwd=ROOT)
+            self.assertEqual(proc.returncode, 1)
+            with open(out) as fh:
+                page = fh.read()
+            self.assertIn("Loophole", page)
+            self.assertIn("SEC001", page)
+            self.assertNotIn("http://", page.replace(
+                "http://www.w3.org", ""),
+                "HTML report must not reference external assets")
+        finally:
+            os.unlink(out)
 
 
 if __name__ == "__main__":

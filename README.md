@@ -1,10 +1,8 @@
 # 🕳️ Loophole
 
-🌐 **Docs:** https://loophole-sf-c596.vercel.app · 📦 **Latest release:** [v1.0.0](https://github.com/rootsiemen/loophole/releases/tag/v1.0.0)
+🌐 **Website:** https://rootsiemen-portfolio-sf-c596.vercel.app · 📦 **Latest release:** [v1.1.0](https://github.com/rootsiemen/loophole/releases/tag/v1.1.0)
 
 This project is tested with BrowserStack.
-
-[![Build with Ona](https://ona.com/build-with-ona.svg)](https://app.ona.com/#https://github.com/rootsiemen/loophole)
 
 **Loophole** is a zero-dependency static security scanner that finds the holes
 in your code — hardcoded secrets, SQL injection, XSS, command injection, weak
@@ -46,6 +44,14 @@ python3 loophole.py scan ./src --json report.json
 
 # SARIF for GitHub code scanning
 python3 loophole.py scan ./src --sarif results.sarif
+
+# self-contained HTML report (inline CSS, no external assets)
+python3 loophole.py scan ./src --html report.html
+
+# adopt on an existing codebase: record today's findings as a baseline,
+# then fail CI only on NEW ones
+python3 loophole.py scan ./src --write-baseline baseline.json
+python3 loophole.py scan ./src --baseline baseline.json
 
 # show suggested fixes as diffs (read-only)
 python3 loophole.py scan ./src --fix-dry
@@ -118,7 +124,7 @@ Loophole found 3 issue(s): 1 critical, 2 high, 0 medium
   (no shell). Never concatenate input into a command string.
 ```
 
-## Rules (50)
+## Rules (61)
 
 | ID | Severity | What it catches |
 |----|----------|-----------------|
@@ -172,6 +178,17 @@ Loophole found 3 issue(s): 1 critical, 2 high, 0 medium
 | LOG001 | medium | Sensitive data (passwords/tokens) written to logs |
 | LDAP001 | high | LDAP injection via unescaped input |
 | HDR001 | medium | Missing security headers (Express/Flask, app-level heuristic) |
+| SSTI001 | high | Server-side template injection — input used AS the template (EJS/Pug/Jinja2/Go templates/Twig) |
+| COOKIE001 | medium | Cookie set without HttpOnly, or the flag explicitly disabled |
+| RAND004 | medium | `rand()`/`mt_rand()`/`uniqid()` for tokens/secrets (PHP) |
+| TLS003 | high | TLS validation off via `CERT_NONE`, unverified contexts, `VERIFYHOST=0`, `NODE_TLS_REJECT_UNAUTHORIZED=0` |
+| CORS002 | high | CORS reflects any request Origin, or credentials combined with a wildcard origin |
+| CRLF001 | medium | HTTP header injection — user-influenced value written into a response header |
+| CMP001 | medium | Secret/token compared with `==`/`===` instead of a constant-time compare |
+| REDIR002 | medium | DOM open redirect — `location` assigned from user input (JS/TS) |
+| XXE002 | high | XXE — libxmljs entity expansion enabled (`noent`/`dtdload`) |
+| XSS005 | high | `insertAdjacentHTML`, Vue `v-html`, Angular `bypassSecurityTrust*` |
+| DESER002 | high | `jsonpickle.decode` (Python) / `v8.deserialize` (JS) on dynamic data |
 
 Each finding carries: rule id, severity, `file:line`, code snippet, taint
 path (when tracked), *why it matters*, and a *fix suggestion*.
@@ -237,6 +254,63 @@ res.setHeader('Access-Control-Allow-Origin', '*');
 Comma-separated rule ids are supported: `# loophole: skip=SEC001,SEC005`.
 Use suppressions sparingly — each one is a hole you're choosing not to see.
 
+`loophole:ignore` is an alias with a space-separated form, handy in
+languages where `=` looks odd in comments:
+
+```js
+res.cookie('session', id, opts);  // loophole:ignore COOKIE001
+```
+
+## Configuration
+
+Drop a `.loophole.json` in the directory you scan (or point `--config`
+at any file) to tune the scan per project:
+
+```json
+{
+  "exclude": ["generated", "fixtures"],
+  "disable": ["HDR001"],
+  "severity": { "SEC001": "medium", "LOG001": "critical" }
+}
+```
+
+- `exclude` — path names or glob patterns to skip (merged with the
+  built-in excludes and any `--exclude` flags).
+- `disable` — rule ids that never run for this project.
+- `severity` — per-rule severity overrides (`critical`, `high`,
+  `medium`); they affect the report order and the exit code.
+
+A broken config file prints a warning and is ignored — a scan never
+dies because of its config.
+
+## Baseline
+
+Adopting a scanner on an existing codebase usually means a wall of
+findings you can't fix today. Record them once:
+
+```bash
+python3 loophole.py scan ./src --write-baseline baseline.json
+```
+
+Commit `baseline.json`, and later scans hide everything in it:
+
+```bash
+python3 loophole.py scan ./src --baseline baseline.json
+```
+
+CI then fails only on **new** findings. Entries are keyed by rule,
+file and code snippet, so small line shifts don't resurrect them.
+
+## HTML report
+
+```bash
+python3 loophole.py scan ./src --html report.html
+```
+
+Produces a single self-contained HTML file — inline CSS, no external
+assets, works offline — with findings grouped by severity, each with
+file/line, the code snippet, why it matters and the fix.
+
 ## Project layout
 
 ```
@@ -246,7 +320,7 @@ loophole/
 ├── README.md
 └── tests/
     ├── selftest.py        # python3 tests/selftest.py
-    └── fixtures/          # 12 fixtures (6 vulnerable + 6 clean)
+    └── fixtures/          # 20 fixtures (10 vulnerable + 10 clean)
 ```
 
 ## Contributing
@@ -264,7 +338,3 @@ clean (exit 0).
 ## License
 
 MIT — see `LICENSE`. Loophole is free and non-commercial: no paid tiers, no telemetry, no usage restrictions beyond the MIT terms.
-
----
-
-Built by [WebStore Pro](https://frinjo.me) — full-stack web development and free online tools at [Frinjo](https://frinjo.me).

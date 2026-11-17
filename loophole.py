@@ -10,8 +10,12 @@ user-controlled input to dangerous sinks.
 
 Usage:
     python3 loophole.py scan <path> [--json out.json] [--sarif out.sarif]
-                                    [--fix-dry] [--severity critical,high]
+                                    [--html report.html] [--fix-dry]
+                                    [--severity critical,high]
                                     [--exclude dir1,dir2] [--no-color]
+                                    [--config .loophole.json]
+                                    [--baseline base.json]
+                                    [--write-baseline base.json]
 
 Exit code is 1 when any critical/high finding exists (CI-friendly), else 0.
 
@@ -28,13 +32,14 @@ Stdlib only. No dependencies.
 import argparse
 import difflib
 import fnmatch
+import html
 import json
 import math
 import os
 import re
 import sys
 
-VERSION = "0.1.0"
+VERSION = "1.1.0"
 
 # ---------------------------------------------------------------------------
 # Finding model
@@ -2118,7 +2123,496 @@ def rule_HDR001(ctx):
 
 
 # ---------------------------------------------------------------------------
-# Rule registry — 50 rules
+# SSTI — server-side template injection
+# ---------------------------------------------------------------------------
+
+def _dynamic_arg(ctx, args):
+    """True when the FIRST call argument is not a plain literal: tainted,
+    concatenated, interpolated or a bare variable/expression. (Only the
+    first argument is judged — later arguments are usually data.)"""
+    if args is None:
+        return False
+    first = _first_arg(args).strip()
+    if is_string_literal(first):
+        return False
+    taint_var, taint_src = ctx.flow(first)
+    if taint_var or taint_src:
+        return True
+    return bool(re.search(r"\+\s*['\"]|['\"]\s*\+|\$\{|%\s*\(|\.\s*\$",
+                          first)
+                or re.match(r"f['\"]", first))
+
+
+_SSTI_SINKS = {
+    "js": [r"\bejs\.(?:render|compile)", r"\bpug\.(?:render|compile)",
+           r"\bnunjucks\.renderString", r"\bHandlebars\.compile",
+           r"_\.template"],
+    "php": [r"->\s*createTemplate", r"Blade::render"],
+}
+
+_SSTI_WHY = ("Template engines execute the expressions inside the "
+             "template string itself. When user input becomes the "
+             "template — instead of data passed to a fixed one — "
+             "attackers inject {{ }} / <% %> payloads that evaluate on "
+             "the server: full remote code execution.")
+_SSTI_FIX = ("Render only fixed, developer-written templates and pass "
+             "user input as context data. If users need markup, use a "
+             "plain-text or sandboxed renderer, never the raw engine.")
+
+
+def rule_SSTI001(ctx):
+    """User input rendered AS a template (SSTI)."""
+    out = []
+    if ctx.lang == "py":
+        text = "\n".join(ctx.lines)
+        if "jinja2" not in text and "render_template_string" not in text:
+            return out
+        sinks = [r"render_template_string", r"\bTemplate"]
+    elif ctx.lang == "go":
+        text = "\n".join(ctx.lines)
+        if "text/template" not in text and "html/template" not in text:
+            return out
+        for i, line in enumerate(ctx.lines, 1):
+            if not re.search(r"(?:\b\w*[Tt]emplate\w*|\btmpl\b|\btpl\b|\bt)"
+                             r"\s*\.\s*Parse\s*\("
+                             r"|\.New\s*\([^)]*\)\s*\.Parse\s*\(", line):
+                continue
+            if _dynamic_arg(ctx, call_args(line, r"\.Parse")):
+                out.append(ctx.hit(
+                    "SSTI001", "high",
+                    "Server-side template injection (input parsed as "
+                    "template)", i, _SSTI_WHY, _SSTI_FIX))
+        return out
+    else:
+        sinks = _SSTI_SINKS[ctx.lang]
+    for i, line in enumerate(ctx.lines, 1):
+        for pat in sinks:
+            args = call_args(line, pat)
+            if args is not None and _dynamic_arg(ctx, args):
+                out.append(ctx.hit(
+                    "SSTI001", "high",
+                    "Server-side template injection (input used as "
+                    "template)", i, _SSTI_WHY, _SSTI_FIX))
+                break
+    return out
+
+
+# ---------------------------------------------------------------------------
+# COOKIE — session cookies without HttpOnly / Secure
+# ---------------------------------------------------------------------------
+
+_COOKIE_WHY = ("Cookies without HttpOnly are readable from JavaScript, "
+               "so any XSS becomes session theft; without Secure they "
+               "also travel over plain HTTP. Several frameworks default "
+               "HttpOnly OFF for hand-set cookies.")
+_COOKIE_FIX = ("Set HttpOnly, Secure and SameSite on session cookies: "
+               "res.cookie(..., { httpOnly: true, secure: true, "
+               "sameSite: 'lax' }) / set_cookie(..., httponly=True, "
+               "secure=True, samesite='Lax') / setcookie(..., "
+               "['httponly' => true, 'secure' => true, "
+               "'samesite' => 'Lax']).")
+
+
+def rule_COOKIE001(ctx):
+    """Cookies set without HttpOnly (explicit off, or not mentioned)."""
+    out = []
+    for i, line in enumerate(ctx.lines, 1):
+        low = line.lower()
+        if ctx.lang == "py" and re.search(
+                r"\b(SESSION|CSRF)_COOKIE_(HTTPONLY|SECURE)\s*=\s*False",
+                line):
+            out.append(ctx.hit(
+                "COOKIE001", "medium",
+                "Session cookie flag disabled in settings", i,
+                _COOKIE_WHY, _COOKIE_FIX))
+            continue
+        if re.search(r"(?i)httponly['\"]?\s*(?::|=>)\s*false", line):
+            out.append(ctx.hit(
+                "COOKIE001", "medium", "Cookie HttpOnly explicitly off",
+                i, _COOKIE_WHY, _COOKIE_FIX))
+            continue
+        heuristic = False
+        if ctx.lang == "js":
+            heuristic = bool(
+                re.search(r"\.cookie\s*\(", line)
+                or re.search(r"setHeader\s*\(\s*['\"]Set-Cookie", line))
+        elif ctx.lang == "py":
+            heuristic = bool(re.search(r"\.set_cookie\s*\(", line))
+        elif ctx.lang == "php":
+            heuristic = bool(re.search(r"\bset(raw)?cookie\s*\(", line))
+        if heuristic and "httponly" not in low:
+            out.append(ctx.hit(
+                "COOKIE001", "medium",
+                "Cookie set without HttpOnly flag", i,
+                _COOKIE_WHY + " (Heuristic: options set on a following "
+                "line are not seen by this check.)", _COOKIE_FIX))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# RAND004 — weak randomness (PHP)
+# ---------------------------------------------------------------------------
+
+def rule_RAND004(ctx):
+    """rand()/mt_rand()/uniqid() used for security-sensitive values (PHP)."""
+    out = []
+    for i, line in enumerate(ctx.lines, 1):
+        if not re.search(r"\b(rand|mt_rand|uniqid|lcg_value|array_rand|"
+                         r"str_shuffle)\s*\(", line):
+            continue
+        context = line if i == 1 else ctx.lines[i - 2] + "\n" + line
+        if not re.search(r"(?i)(token|secret|password|passwd|key|nonce|"
+                         r"otp|session|uuid|captcha|salt)", context):
+            continue
+        out.append(ctx.hit(
+            "RAND004", "medium",
+            "Weak PHP randomness for security-sensitive value", i,
+            "rand()/mt_rand() are seeded PRNGs and uniqid() is just the "
+            "microsecond clock — tokens, OTPs and reset codes built on "
+            "them can be predicted or brute-forced.",
+            "Use the CSPRNG: random_bytes() / random_int() — e.g. "
+            "bin2hex(random_bytes(32)) for tokens."))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# TLS003 — certificate validation off via CERT_NONE & friends
+# ---------------------------------------------------------------------------
+
+def rule_TLS003(ctx):
+    """Cert validation disabled via CERT_NONE / unverified context /
+    VERIFYHOST=0 / NODE_TLS_REJECT_UNAUTHORIZED=0 (TLS001's siblings)."""
+    pats = {
+        "js": [r"process\.env\.NODE_TLS_REJECT_UNAUTHORIZED\s*=\s*"
+               r"['\"]?0['\"]?",
+               r"strictSSL\s*:\s*false"],
+        "py": [r"ssl\.CERT_NONE\b", r"_create_unverified_context\s*\(",
+               r"check_hostname\s*=\s*False"],
+        "php": [r"(?i)CURLOPT_SSL_VERIFYHOST\s*,\s*(0|false)\b",
+                r"['\"]verify['\"]\s*=>\s*false"],
+    }
+    return regex_rule(
+        ctx, "TLS003", "high",
+        "TLS certificate validation disabled (CERT_NONE / unverified)",
+        pats,
+        "CERT_NONE, unverified SSL contexts, VERIFYHOST=0 and friends "
+        "switch off the check that proves you are talking to the real "
+        "server — every HTTPS call becomes interceptable (MITM), the "
+        "same hole as verify=False.",  # loophole: skip=TLS001
+        "Validate certificates: use the default SSL context "
+        "(CERT_REQUIRED + hostname checking), keep VERIFYPEER on and "
+        "VERIFYHOST=2, and never ship NODE_TLS_REJECT_UNAUTHORIZED=0.")
+
+
+# ---------------------------------------------------------------------------
+# CORS002 — reflected Origin / credentials combined with wildcard
+# ---------------------------------------------------------------------------
+
+_CORS_REFLECT = {
+    "js": r"Access-Control-Allow-Origin['\"]?\s*\]?\s*[,=:]\s*[^;\n]*"
+          r"req\.(headers\.origin|get\s*\(|header\s*\()",
+    "py": r"Access-Control-Allow-Origin['\"]?\s*\]?\s*[,=:]\s*[^;\n]*"
+          r"request\.(headers|get_header)",
+    "go": r"Access-Control-Allow-Origin[\"']?\s*[,;:=]\s*[^;\n]*"
+          r"\.Header\.Get\(\"Origin\"\)",
+    "php": r"Access-Control-Allow-Origin[^;\n]*"
+           r"\$_SERVER\[['\"]HTTP_ORIGIN['\"]\]",
+}
+
+_CORS_CRED = {
+    "js": r"credentials\s*:\s*true",
+    "py": r"(?i)(supports_credentials\s*=\s*True|allow_credentials\s*=\s*"
+          r"True|CORS_ALLOW_CREDENTIALS\s*=\s*True)",
+    "go": r"AllowCredentials\s*:\s*true",
+    "php": r"(?i)Access-Control-Allow-Credentials['\"]?\s*:\s*true",
+}
+
+_CORS_WILD = {
+    "js": r"(origin\s*:\s*['\"]\*['\"]|Access-Control-Allow-Origin"
+          r"['\"]?\s*\]?\s*[,=:]\s*['\"]\*['\"])",
+    "py": r"(allow_origins\s*=\s*\[[^\]]*\*|origins\s*=\s*['\"]\*['\"]|"
+          r"CORS_ALLOW_ALL_ORIGINS\s*=\s*True)",
+    "go": r"(AllowedOrigins\s*:\s*\[\]string\{\s*\"\*\"|"
+          r"Access-Control-Allow-Origin[\"']?\s*[:=]\s*[\"']\*)",
+    "php": r"Access-Control-Allow-Origin:\s*\*",
+}
+
+_CORS002_WHY = ("Reflecting any Origin — or combining credentials with "
+                "a wildcard origin — lets ANY website make credentialed "
+                "cross-origin requests with the victim's session and "
+                "read the responses: cross-site data theft, worse than "
+                "a plain wildcard (CORS001).")
+_CORS002_FIX = ("Allowlist exact trusted origins and echo back only "
+                "those; never reflect arbitrary Origin values, and "
+                "never combine credentials with '*'.")
+
+
+def rule_CORS002(ctx):
+    """CORS that reflects any Origin, or credentials + wildcard origin."""
+    out = []
+    reflect = re.compile(_CORS_REFLECT[ctx.lang])
+    hit_lines = set()
+    for i, line in enumerate(ctx.lines, 1):
+        if reflect.search(line):
+            hit_lines.add(i)
+            out.append(ctx.hit(
+                "CORS002", "high",
+                "CORS: request Origin reflected to any site", i,
+                _CORS002_WHY, _CORS002_FIX))
+    text = "\n".join(ctx.lines)
+    cred = re.search(_CORS_CRED[ctx.lang], text)
+    wild = re.search(_CORS_WILD[ctx.lang], text)
+    if cred and wild:
+        for i, line in enumerate(ctx.lines, 1):
+            if i not in hit_lines and re.search(_CORS_CRED[ctx.lang],
+                                                line):
+                out.append(ctx.hit(
+                    "CORS002", "high",
+                    "CORS: credentials allowed with wildcard origin", i,
+                    _CORS002_WHY, _CORS002_FIX))
+                break
+    return out
+
+
+# ---------------------------------------------------------------------------
+# CRLF — HTTP header injection / response splitting
+# ---------------------------------------------------------------------------
+
+def rule_CRLF001(ctx):
+    """User-influenced value written into a response header."""
+    out = []
+    why = ("A value containing CR/LF written into a response header "
+           "lets attackers inject whole new headers or split the "
+           "response — session fixation, cache poisoning, and XSS via "
+           "a forged Content-Type or Location.")
+    fix = ("Strip or reject CR and LF in any value placed in a header, "
+           "and validate values against an allowlist where they have a "
+           "known shape (ids, tokens, filenames).")
+    for i, line in enumerate(ctx.lines, 1):
+        args = None
+        if ctx.lang == "js":
+            if re.search(r"\.(setHeader|writeHead)\s*\(", line):
+                args = call_args(line, r"\.(?:setHeader|writeHead)")
+        elif ctx.lang == "py":
+            m = re.search(r"\.headers\s*\[[^\]]*\]\s*=\s*(.+)$", line)
+            if m:
+                args = m.group(1)
+            elif re.search(r"\bset_header\s*\(", line):
+                args = call_args(line, r"set_header")
+        elif ctx.lang == "php":
+            if re.search(r"\bheader\s*\(", line) \
+                    and "Location:" not in line:
+                args = call_args(line, r"\bheader")
+        if args is None:
+            continue
+        if is_string_literal(args.strip().rstrip(";")):
+            continue  # static value (e.g. a fixed CSP header): safe
+        taint_var, taint_src = ctx.flow(args)
+        dynamic = (taint_var or taint_src
+                   or re.search(r"\+\s*['\"]|['\"]\s*\+|\.\s*\$|\$\{|"
+                                r"%\s*\(|\bf['\"]", args))
+        if dynamic:
+            out.append(ctx.hit(
+                "CRLF001", "medium",
+                "HTTP header injection (value from user input)", i,
+                why, fix,
+                taint=_taint_note(taint_var, taint_src, "header")))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# CMP — secrets compared with == / === (timing side channel)
+# ---------------------------------------------------------------------------
+
+_CMP_SAFE = re.compile(
+    r"(?i)(compare_digest|timingSafeEqual|hash_equals|"
+    r"ConstantTimeCompare|secure_compare)")
+_CMP_NAME = re.compile(
+    r"(?i)(token|secret|password|passwd|api[_-]?key|apikey|signature|"
+    r"hmac|digest|otp)")
+
+
+def _operand_left(text):
+    """The operand expression immediately left of a comparison operator."""
+    text = text.rstrip()
+    m = re.search(r"([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*|"
+                  r"\[[^\]]*\]|\([^()]*\))*)$", text)
+    return m.group(1) if m else text[-24:]
+
+
+def _operand_right(text):
+    """The operand expression immediately right of a comparison operator."""
+    text = text.lstrip()
+    m = re.match(r"([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*|"
+                 r"\[[^\]]*\]|\([^()]*\))*)", text)
+    return m.group(1) if m else text[:24]
+
+
+def _is_literal_operand(op):
+    op = op.strip()
+    if not op:
+        return True
+    if op[0] in "\"'`" or op[0].isdigit():
+        return True
+    return re.match(r"(?i)(none|true|false|null|undefined|nil)\b",
+                    op) is not None
+
+
+def rule_CMP001(ctx):
+    """Secret/token compared with == or === instead of constant-time."""
+    out = []
+    for i, line in enumerate(ctx.lines, 1):
+        if _CMP_SAFE.search(line):
+            continue
+        m = re.search(r"(?<![=!<>])={2,3}(?![=])", line)
+        if not m:
+            continue
+        left = _operand_left(line[:m.start()])
+        right = _operand_right(line[m.end():])
+        if _is_literal_operand(left) or _is_literal_operand(right):
+            continue  # constant check (== "", == null, == 0): not this
+        if not (_CMP_NAME.search(left) or _CMP_NAME.search(right)):
+            continue
+        out.append(ctx.hit(
+            "CMP001", "medium",
+            "Secret compared with == (timing side channel)", i,
+            "== / === returns on the first differing byte, leaking how "
+            "much of a guess was right — over many requests an attacker "
+            "recovers tokens and HMACs byte by byte. In PHP, loose == "
+            "also invites type-juggling bypasses ('0e123' == '0').",
+            "Compare in constant time: hmac.compare_digest (Python), "
+            "crypto.timingSafeEqual (JS), hash_equals (PHP), "
+            "subtle.ConstantTimeCompare (Go)."))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# REDIR002 — DOM open redirect (client-side)
+# ---------------------------------------------------------------------------
+
+def rule_REDIR002(ctx):
+    """location assigned / navigated to a user-influenced URL (JS/TS)."""
+    out = []
+    for i, line in enumerate(ctx.lines, 1):
+        hit = False
+        m = re.search(r"(?<![\w$.])(?:window\.|document\.)?location"
+                      r"(?:\.href)?\s*=\s*(.+)$", line)
+        if m and not re.search(r"\b(const|let|var)\s+(window\.)?location"
+                               r"\b", line):
+            rhs = m.group(1).strip().rstrip(";")
+            if not is_string_literal(rhs):
+                taint_var, taint_src = ctx.flow(rhs)
+                hit = bool(taint_var or taint_src
+                           or re.search(r"\+|\$\{|`", rhs))
+        if not hit:
+            for pat in (r"location\.assign", r"location\.replace"):
+                args = call_args(line, pat)
+                if args is not None and _dynamic_arg(ctx, args):
+                    hit = True
+                    break
+        if hit:
+            out.append(ctx.hit(
+                "REDIR002", "medium",
+                "DOM open redirect (location set from input)", i,
+                "Assigning location from URL parameters or other input "
+                "(location.search, document.referrer, postMessage data) "
+                "sends victims to attacker sites from your trusted "
+                "origin — phishing and OAuth token theft. (Server-side "
+                "redirects are REDIR001.)",
+                "Only navigate to allowlisted local paths: parse the "
+                "target, require same-origin and a path starting with "
+                "a single '/'."))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# XXE002 — libxmljs entity expansion (JS/TS)
+# ---------------------------------------------------------------------------
+
+def rule_XXE002(ctx):
+    """libxmljs parsing with DTD loading / entity expansion enabled."""
+    pats = {"js": [r"\bnoent\s*:\s*true", r"\bdtdload\s*:\s*true",
+                   r"\bnonet\s*:\s*false"]}
+    return regex_rule(
+        ctx, "XXE002", "high",
+        "XXE: libxmljs entity expansion enabled (noent/dtdload)", pats,
+        "The libxmljs options noent/dtdload (or nonet off) switch on "
+        "DTD loading and entity substitution — the two switches that "
+        "turn an XML parser into an XXE file-reading / SSRF weapon "
+        "(the JS sibling of XXE001).",
+        "Parse with noent: false, dtdload: false, nonet: true — or "
+        "use a parser that never resolves external entities.")
+
+
+# ---------------------------------------------------------------------------
+# XSS005 — framework HTML-injection sinks beyond innerHTML
+# ---------------------------------------------------------------------------
+
+def rule_XSS005(ctx):
+    """insertAdjacentHTML, Vue v-html, Angular bypassSecurityTrust*."""
+    out = []
+    why = ("These APIs inject raw HTML into the DOM, bypassing the "
+           "framework's automatic escaping. With user-influenced "
+           "content they are stored/reflected XSS — the same hole as "
+           "innerHTML (XSS001) through a framework door.")
+    fix = ("Render text through the framework's normal interpolation; "
+           "if HTML is unavoidable, sanitize with DOMPurify first and "
+           "treat bypassSecurityTrust* / v-html as code-review flags.")
+    for i, line in enumerate(ctx.lines, 1):
+        args = call_args(line, r"\.insertAdjacentHTML")
+        if args is not None:
+            rest = args.split(",", 1)[1] if "," in args else args
+            if not is_string_literal(rest.strip()):
+                out.append(ctx.hit(
+                    "XSS005", "high",
+                    "Dynamic HTML via insertAdjacentHTML", i, why, fix))
+            continue
+        if re.search(r"v-html\s*=", line):
+            out.append(ctx.hit(
+                "XSS005", "high", "Vue v-html (raw HTML rendering)", i,
+                why, fix))
+        elif re.search(r"bypassSecurityTrust\w*\s*\(", line):
+            out.append(ctx.hit(
+                "XSS005", "high",
+                "Angular bypassSecurityTrust* (sanitizer disabled)", i,
+                why, fix))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# DESER002 — jsonpickle / Node v8 deserialization
+# ---------------------------------------------------------------------------
+
+def rule_DESER002(ctx):
+    """jsonpickle.decode (py) / v8.deserialize (js) on dynamic data."""  # loophole: skip=DESER002
+    out = []
+    why = ("jsonpickle reconstructs arbitrary Python objects from JSON "
+           "tags, and Node's v8.deserialize runs the V8 serializer on "
+           "attacker bytes with known gadget chains — both turn "
+           "untrusted input into code execution (DESER001's extended "
+           "family).")
+    fix = ("Use plain json.loads() / JSON.parse() for untrusted data; "
+           "never an object-reviving deserializer.")
+    if ctx.lang == "py":
+        for i, line in enumerate(ctx.lines, 1):
+            if re.search(r"\bjsonpickle\.(decode|loads)\s*\(", line):
+                out.append(ctx.hit(
+                    "DESER002", "high",
+                    "Unsafe deserialization (jsonpickle)", i, why, fix))
+    elif ctx.lang == "js":
+        for i, line in enumerate(ctx.lines, 1):
+            args = call_args(line, r"\bv8\.deserialize")
+            if args is not None \
+                    and not is_string_literal(_first_arg(args)):
+                out.append(ctx.hit(
+                    "DESER002", "high",
+                    "Unsafe deserialization (v8.deserialize)", i,
+                    why, fix))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Rule registry — 61 rules
 # ---------------------------------------------------------------------------
 
 RULES = [
@@ -2173,30 +2667,93 @@ RULES = [
     ("LOG001", ("js", "py", "go", "php"), rule_LOG001),
     ("LDAP001", ("js", "py", "php"), rule_LDAP001),
     ("HDR001", ("js", "py"), rule_HDR001),
+    ("SSTI001", ("js", "py", "go", "php"), rule_SSTI001),
+    ("COOKIE001", ("js", "py", "php"), rule_COOKIE001),
+    ("RAND004", ("php",), rule_RAND004),
+    ("TLS003", ("js", "py", "php"), rule_TLS003),
+    ("CORS002", ("js", "py", "go", "php"), rule_CORS002),
+    ("CRLF001", ("js", "py", "php"), rule_CRLF001),
+    ("CMP001", ("js", "py", "go", "php"), rule_CMP001),
+    ("REDIR002", ("js",), rule_REDIR002),
+    ("XXE002", ("js",), rule_XXE002),
+    ("XSS005", ("js",), rule_XSS005),
+    ("DESER002", ("js", "py"), rule_DESER002),
 ]
 
 
 # ---------------------------------------------------------------------------
-# Inline suppressions:  # loophole: skip   or   # loophole: skip=SEC001,CRY003
+# Inline suppressions:
+#   # loophole: skip              -> every rule on the line
+#   # loophole: skip=SEC001,CRY003
+#   // loophole:ignore SEC001     -> space form, same effect ("ignore"
+#                                    is an alias of "skip")
 # ---------------------------------------------------------------------------
 
-_SKIP_RE = re.compile(r"loophole\s*:\s*skip(?:\s*=\s*([A-Za-z0-9_, ]+))?",
+_SKIP_RE = re.compile(r"loophole\s*:\s*(?:skip|ignore)\b(.*)",
                       re.IGNORECASE)
+_RULE_ID_TOKEN = re.compile(r"[A-Za-z]{2,}\d{3}")
 
 
 def _suppressed(line, rule_id):
-    """True when the line carries a loophole: skip comment for this rule."""
+    """True when the line carries a loophole skip/ignore comment that
+    covers this rule."""
     m = _SKIP_RE.search(line)
     if not m:
         return False
-    ids = m.group(1)
-    if not ids:  # bare "loophole: skip" silences every rule on the line
-        return True
-    return rule_id.upper() in {x.strip().upper()
-                               for x in ids.split(",") if x.strip()}
+    rest = m.group(1).strip().lstrip("=").strip()
+    if not rest:
+        return True  # bare skip/ignore silences every rule on the line
+    ids = {t.upper() for t in _RULE_ID_TOKEN.findall(rest)}
+    if not ids:
+        return True  # free-text reason only ("ignore, because ...")
+    return rule_id.upper() in ids
 
 
-def scan_file(path):
+# ---------------------------------------------------------------------------
+# Config file (.loophole.json)
+# ---------------------------------------------------------------------------
+
+def load_config(explicit_path, root):
+    """Load scan config: {"exclude": [...], "disable": [rule ids],
+    "severity": {rule id: level}}.
+
+    --config wins; otherwise a .loophole.json in the scanned root (or
+    the scanned file's directory) is picked up automatically. A broken
+    config warns on stderr and is ignored — a scan must never die
+    because of its config file.
+    """
+    path = explicit_path
+    if not path:
+        base = root if os.path.isdir(root) else os.path.dirname(
+            os.path.abspath(root))
+        cand = os.path.join(base, ".loophole.json")
+        path = cand if os.path.isfile(cand) else None
+    if not path:
+        return {}
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError) as exc:
+        print(f"loophole: warning: cannot read config {path}: {exc}",
+              file=sys.stderr)
+        return {}
+    if not isinstance(data, dict):
+        print(f"loophole: warning: config {path} is not a JSON object",
+              file=sys.stderr)
+        return {}
+    cfg = {"exclude": [], "disable": set(), "severity": {}}
+    if isinstance(data.get("exclude"), list):
+        cfg["exclude"] = [str(x) for x in data["exclude"]]
+    if isinstance(data.get("disable"), list):
+        cfg["disable"] = {str(x).upper() for x in data["disable"]}
+    if isinstance(data.get("severity"), dict):
+        for rid, level in data["severity"].items():
+            if level in SEV_ORDER:
+                cfg["severity"][str(rid).upper()] = level
+    return cfg
+
+
+def scan_file(path, config=None):
     """Scan one file. Returns a list of Findings."""
     lang = detect_lang(path)
     if not lang:
@@ -2206,16 +2763,22 @@ def scan_file(path):
             lines = f.read().splitlines()
     except OSError:
         return []
+    disabled = config.get("disable", ()) if config else ()
+    overrides = config.get("severity", {}) if config else {}
     ctx = Ctx(path, lang, lines)
     findings = []
     for rule_id, langs, func in RULES:
-        if lang in langs:
+        if lang in langs and rule_id not in disabled:
             try:
                 findings.extend(func(ctx))
             except Exception:
                 # a broken rule must never kill a scan
                 continue
-    # honor inline suppressions:  # loophole: skip  /  # loophole: skip=SEC001
+    # config severity overrides (before sorting / suppression)
+    for f in findings:
+        if f.rule_id in overrides:
+            f.severity = overrides[f.rule_id]
+    # honor inline suppressions:  # loophole: skip  /  loophole:ignore ID
     findings = [f for f in findings
                 if not _suppressed(lines[f.line - 1], f.rule_id)]
     findings.sort(key=lambda f: (SEV_ORDER[f.severity], f.path, f.line))
@@ -2242,10 +2805,13 @@ def iter_source_files(root, excludes):
             yield p
 
 
-def scan_path(root, excludes):
+def scan_path(root, excludes, config=None):
     findings = []
+    excludes = list(excludes or [])
+    if config:
+        excludes += config.get("exclude", [])
     for path in sorted(iter_source_files(root, excludes)):
-        findings.extend(scan_file(path))
+        findings.extend(scan_file(path, config))
     findings.sort(key=lambda f: (SEV_ORDER[f.severity], f.path, f.line))
     return findings
 
@@ -2353,6 +2919,94 @@ def write_sarif(findings, out_path):
 
 
 # ---------------------------------------------------------------------------
+# Output: HTML report (single file, inline CSS, no external assets)
+# ---------------------------------------------------------------------------
+
+_HTML_CSS = (
+    "body{font-family:system-ui,sans-serif;margin:2rem auto;max-width:"
+    "60rem;padding:0 1rem;color:#1a1a1a}h1{font-size:1.5rem}"
+    ".summary{color:#555}.finding{border:1px solid #ddd;border-left:"
+    "6px solid #999;border-radius:4px;padding:.6rem 1rem;margin:.8rem 0}"
+    ".finding.critical{border-left-color:#c0392b}.finding.high{"
+    "border-left-color:#e67e22}.finding.medium{border-left-color:#2980b9}"
+    ".loc{color:#555;font-family:ui-monospace,monospace}pre{background:"
+    "#f6f6f6;padding:.5rem;overflow-x:auto}.taint{color:#c0392b}"
+    "h2.critical{color:#c0392b}h2.high{color:#e67e22}h2.medium{"
+    "color:#2980b9}")
+
+
+def write_html(findings, out_path):
+    """Self-contained HTML report: findings grouped by severity."""
+    esc = html.escape
+    counts = {s: sum(1 for f in findings if f.severity == s)
+              for s in SEVERITIES}
+    summary = ", ".join(f"{counts[s]} {s}" for s in SEVERITIES
+                        if counts[s]) or "no findings"
+    parts = [
+        "<!DOCTYPE html>",
+        '<html lang="en"><head><meta charset="utf-8">',
+        "<title>Loophole scan report</title>",
+        f"<style>{_HTML_CSS}</style></head><body>",
+        f"<h1>Loophole v{esc(VERSION)} — scan report</h1>",
+        f'<p class="summary">{len(findings)} finding(s): '
+        f"{esc(summary)}</p>",
+    ]
+    for sev in SEVERITIES:
+        group = [f for f in findings if f.severity == sev]
+        if not group:
+            continue
+        parts.append(f'<h2 class="{sev}">{sev.upper()} '
+                     f"({len(group)})</h2>")
+        for f in group:
+            parts.append(f'<div class="finding {sev}">')
+            parts.append(f"<h3>{esc(f.rule_id)} — {esc(f.title)}</h3>")
+            parts.append(f'<p class="loc">{esc(f.path)}:{f.line}</p>')
+            parts.append(f"<pre>{esc(f.snippet)}</pre>")
+            if f.taint:
+                parts.append(f'<p class="taint">taint: '
+                             f"{esc(f.taint)}</p>")
+            parts.append(f"<p><strong>Why:</strong> {esc(f.why)}</p>")
+            parts.append(f"<p><strong>Fix:</strong> {esc(f.fix)}</p>")
+            parts.append("</div>")
+    parts.append("</body></html>")
+    with open(out_path, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(parts))
+    return out_path
+
+
+# ---------------------------------------------------------------------------
+# Baseline: known findings you accept today, so CI only fails on NEW ones
+# ---------------------------------------------------------------------------
+
+def _baseline_key(f):
+    # snippet (not just line) so a finding survives small line shifts
+    return (f.rule_id, f.path, f.snippet)
+
+
+def write_baseline(findings, out_path):
+    data = {
+        "tool": "loophole",
+        "version": VERSION,
+        "entries": [
+            {"rule_id": f.rule_id, "path": f.path, "line": f.line,
+             "snippet": f.snippet}
+            for f in findings
+        ],
+    }
+    with open(out_path, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, indent=2)
+    return out_path
+
+
+def load_baseline(path):
+    """Return the set of (rule_id, path, snippet) keys in a baseline."""
+    with open(path, encoding="utf-8") as fh:
+        data = json.load(fh)
+    return {(e["rule_id"], e["path"], e["snippet"])
+            for e in data.get("entries", [])}
+
+
+# ---------------------------------------------------------------------------
 # --fix-dry: suggested patches as unified diffs (never modifies files)
 # ---------------------------------------------------------------------------
 
@@ -2447,6 +3101,18 @@ def build_parser():
                    help="comma-separated dir names to skip")
     s.add_argument("--no-color", action="store_true",
                    help="disable colored output")
+    s.add_argument("--config", metavar="FILE",
+                   help="config file (default: .loophole.json in the "
+                        "scanned root, if present)")
+    s.add_argument("--baseline", metavar="FILE",
+                   help="baseline file: findings recorded in it are "
+                        "hidden (see --write-baseline)")
+    s.add_argument("--write-baseline", metavar="FILE",
+                   dest="write_baseline",
+                   help="scan, write all findings to this baseline "
+                        "file, exit 0")
+    s.add_argument("--html", metavar="FILE", dest="html_out",
+                   help="also write a self-contained HTML report")
     s.add_argument("--rules", action="store_true",
                    help="list all rule IDs and exit")
     return p
@@ -2465,7 +3131,23 @@ def main(argv=None):
     color = Color(use_color)
 
     excludes = [e.strip() for e in args.exclude.split(",") if e.strip()]
-    findings = scan_path(args.path, excludes)
+    config = load_config(args.config, args.path)
+    findings = scan_path(args.path, excludes, config)
+
+    if args.write_baseline:
+        write_baseline(findings, args.write_baseline)
+        print(f"Baseline written: {args.write_baseline} "
+              f"({len(findings)} findings recorded)")
+        return 0
+    if args.baseline:
+        try:
+            known = load_baseline(args.baseline)
+        except (OSError, ValueError, KeyError) as exc:
+            print(f"loophole: cannot read baseline {args.baseline}: "
+                  f"{exc}", file=sys.stderr)
+            return 2
+        findings = [f for f in findings
+                    if _baseline_key(f) not in known]
 
     print_report(findings, color, args.severity)
 
@@ -2475,6 +3157,9 @@ def main(argv=None):
     if args.sarif_out:
         write_sarif(findings, args.sarif_out)
         print(f"SARIF report: {args.sarif_out}")
+    if args.html_out:
+        write_html(findings, args.html_out)
+        print(f"HTML report: {args.html_out}")
     if args.fix_dry:
         print(color.bold("\n── Suggested fixes (dry run — nothing modified) ──\n"))
         files_lines = {}
