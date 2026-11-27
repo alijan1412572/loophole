@@ -231,6 +231,36 @@ class TestFixtures(unittest.TestCase):
             self.assertEqual(code, 0,
                              "only-medium findings should exit 0")
 
+    def test_severity_validation(self):
+        """An unsupported --severity fails fast with a clean CLI error
+        (no traceback), and a bad severity level in .loophole.json is
+        ignored with a warning naming the rule — never a crash."""
+        target = os.path.join(FIX, "py_vuln.py")
+        proc = subprocess.run(
+            [sys.executable, SCANNER, "scan", target,
+             "--severity", "low", "--no-color"],
+            capture_output=True, text=True, cwd=ROOT)
+        self.assertEqual(proc.returncode, 2,
+                         "--severity low should be an argparse error")
+        self.assertIn("invalid choice", proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
+
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, "app.py"), "w") as fh:
+                fh.write('API_KEY = "sk-live-abcdef1234567890"\n')
+            with open(os.path.join(d, ".loophole.json"), "w") as fh:
+                json.dump({"severity": {"SEC001": "low",
+                                        "SEC002": ["high"]}}, fh)
+            proc = subprocess.run(
+                [sys.executable, SCANNER, "scan", d, "--no-color"],
+                capture_output=True, text=True, cwd=ROOT)
+            self.assertNotIn("Traceback", proc.stderr,
+                             "bad config severity crashed the scan")
+            self.assertIn("SEC001", proc.stderr,
+                          "warning should name the offending rule id")
+            self.assertIn("SEC002", proc.stderr,
+                          "warning should name the offending rule id")
+
     def test_baseline_roundtrip(self):
         """--write-baseline records findings; --baseline then hides them."""
         target = os.path.join(FIX, "py_vuln.py")
