@@ -60,6 +60,10 @@ def hash_password(password):
     return hashlib.md5(password.encode()).hexdigest()  # CRY001 password hash
 
 
+def hash_password_sha1(password):
+    return hashlib.sha1(password.encode()).hexdigest()  # CRY002 password hash
+
+
 @app.route('/admin/panel')
 def admin_panel():  # vuln: no access control here
     return "secret admin stuff"
