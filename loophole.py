@@ -2748,8 +2748,14 @@ def load_config(explicit_path, root):
         cfg["disable"] = {str(x).upper() for x in data["disable"]}
     if isinstance(data.get("severity"), dict):
         for rid, level in data["severity"].items():
-            if level in SEV_ORDER:
-                cfg["severity"][str(rid).upper()] = level
+            norm = str(level).strip().lower()
+            if norm in SEV_ORDER:
+                cfg["severity"][str(rid).upper()] = norm
+            else:
+                print(f"loophole: warning: config {path}: ignoring "
+                      f"invalid severity {level!r} for rule "
+                      f"{str(rid).upper()} (choose from critical, high, "
+                      f"medium)", file=sys.stderr)
     return cfg
 
 
@@ -3095,6 +3101,7 @@ def build_parser():
     s.add_argument("--fix-dry", action="store_true",
                    help="print suggested patches as diffs (never modifies)")
     s.add_argument("--severity", default="medium",
+                   choices=["critical", "high", "medium"],
                    help="minimum severity to display: "
                         "critical, high or medium (default: medium)")
     s.add_argument("--exclude", default="",
